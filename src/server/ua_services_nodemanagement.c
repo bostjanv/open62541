@@ -103,7 +103,9 @@ typeCheckVariableNodeWithValue(UA_Server *server, UA_Session *session,
      * before copying the datatype from the vt. Setting the datatype triggers the
      * typecheck. Here, we have only a typecheck when the datatype is already not null. */
     if(!value->hasValue || !value->value.type) {
-        UA_StatusCode retval = readValueAttribute(server, (const UA_VariableNode*)vt, value);
+        UA_StatusCode retval = readValueAttribute(server, (const UA_VariableNode*)vt,
+                                                  &session->sessionId, session->sessionHandle,
+                                                  value);
         if(retval == UA_STATUSCODE_GOOD && value->hasValue && value->value.type)
             retval = UA_Server_writeValue(server, node->nodeId, value->value);
         if(retval != UA_STATUSCODE_GOOD)
@@ -186,7 +188,9 @@ typeCheckVariableNode(UA_Server *server, UA_Session *session,
      * regular read. */
     UA_DataValue value;
     UA_DataValue_init(&value);
-    UA_StatusCode retval = readValueAttribute(server, node, &value);
+    UA_StatusCode retval = readValueAttribute(server, node,
+                                              &session->sessionId, session->sessionHandle,
+                                              &value);
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
 

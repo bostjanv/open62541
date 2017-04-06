@@ -763,6 +763,7 @@ typedef struct {
      *         original caller are set in the value. If an error is returned,
      *         then no releasing of the value is done. */
     UA_StatusCode (*read)(void *handle, const UA_NodeId nodeid,
+                          const UA_NodeId *sessionId, void *sessionHandle,
                           UA_Boolean includeSourceTimeStamp,
                           const UA_NumericRange *range, UA_DataValue *value);
 
@@ -778,6 +779,7 @@ typedef struct {
      * @return Returns a status code that is returned to the user
      */
     UA_StatusCode (*write)(void *handle, const UA_NodeId nodeid,
+                           const UA_NodeId *sessionId, void *sessionHandle,
                            const UA_Variant *data, const UA_NumericRange *range);
 } UA_DataSource;
 

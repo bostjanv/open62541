@@ -260,7 +260,9 @@ void getNodeType(UA_Server *server, const UA_Node *node, UA_NodeId *typeId);
 /***************************************/
 
 UA_StatusCode
-readValueAttribute(UA_Server *server, const UA_VariableNode *vn, UA_DataValue *v);
+readValueAttribute(UA_Server *server, const UA_VariableNode *vn,
+                   const UA_NodeId* sessionId, void *sessionHandle,
+                   UA_DataValue *v);
 
 UA_StatusCode
 typeCheckValue(UA_Server *server, const UA_NodeId *targetDataTypeId,
@@ -289,6 +291,7 @@ compatibleValueRankArrayDimensions(UA_Int32 valueRank, size_t arrayDimensionsSiz
 
 UA_StatusCode
 writeValueRankAttribute(UA_Server *server, UA_VariableNode *node,
+                        const UA_NodeId *sessionId, void *sessionHandle,
                         UA_Int32 valueRank, UA_Int32 constraintValueRank);
 
 UA_StatusCode
