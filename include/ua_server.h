@@ -33,6 +33,10 @@ struct UA_ServerNetworkLayer;
 typedef struct UA_ServerNetworkLayer UA_ServerNetworkLayer;
 
 struct UA_ServerNetworkLayer {
+#ifdef UA_ENABLE_DEWESOFT
+    void *mutexHandle;
+#endif
+
     void *handle; // pointer to internal data
     UA_String discoveryUrl;
 
@@ -75,19 +79,31 @@ struct UA_ServerNetworkLayer {
  * The access control callback is used to authenticate sessions and grant access
  * rights accordingly. */
 typedef struct {
+#ifdef UA_ENABLE_DEWESOFT
+    void *handle;
+#endif
+
     /* These booleans are used to create endpoints for the possible
      * authentication methods */
     UA_Boolean enableAnonymousLogin;
     UA_Boolean enableUsernamePasswordLogin;
-
+    
     /* Authenticate a session. The session handle is attached to the session and
      * passed into the node-based access control callbacks. */
+#ifdef UA_ENABLE_DEWESOFT
+    UA_StatusCode (*activateSession)(void *handle, const UA_NodeId *sessionId,
+#else
     UA_StatusCode (*activateSession)(const UA_NodeId *sessionId,
+#endif
                                      const UA_ExtensionObject *userIdentityToken,
                                      void **sessionHandle);
 
     /* Deauthenticate a session and cleanup */
+#ifdef UA_ENABLE_DEWESOFT
+    void (*closeSession)(void *handle, const UA_NodeId *sessionId, void *sessionHandle);
+#else
     void (*closeSession)(const UA_NodeId *sessionId, void *sessionHandle);
+#endif
 
     /* Access control for all nodes*/
     UA_UInt32 (*getUserRightsMask)(const UA_NodeId *sessionId,
@@ -767,6 +783,9 @@ typedef struct {
      *         original caller are set in the value. If an error is returned,
      *         then no releasing of the value is done. */
     UA_StatusCode (*read)(void *handle, const UA_NodeId nodeid,
+#ifdef UA_ENABLE_DEWESOFT
+                          const UA_NodeId *sessionId, void *sessionHandle,
+#endif
                           UA_Boolean includeSourceTimeStamp,
                           const UA_NumericRange *range, UA_DataValue *value);
 
@@ -782,6 +801,9 @@ typedef struct {
      * @return Returns a status code that is returned to the user
      */
     UA_StatusCode (*write)(void *handle, const UA_NodeId nodeid,
+#ifdef UA_ENABLE_DEWESOFT
+                           const UA_NodeId *sessionId, void *sessionHandle,
+#endif
                            const UA_Variant *data, const UA_NumericRange *range);
 } UA_DataSource;
 

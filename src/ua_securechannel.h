@@ -26,7 +26,11 @@ struct SessionEntry {
 struct ChunkEntry {
     LIST_ENTRY(ChunkEntry) pointers;
     UA_UInt32 requestId;
+#ifdef UA_ENABLE_DEWESOFT
+    DS_ByteChunk bytes;
+#else
     UA_ByteString bytes;
+#endif
 };
 
 /* For chunked responses */
@@ -54,6 +58,10 @@ struct UA_SecureChannel {
     UA_Connection *connection;
     LIST_HEAD(session_pointerlist, SessionEntry) sessions;
     LIST_HEAD(chunk_pointerlist, ChunkEntry) chunks;
+
+#ifdef UA_ENABLE_DEWESOFT
+    DS_ByteChunk recyclingByteChunk;
+#endif
 };
 
 void UA_SecureChannel_init(UA_SecureChannel *channel);

@@ -296,9 +296,16 @@ readArrayDimensionsAttribute(const UA_VariableNode *vn, UA_DataValue *v) {
     return UA_STATUSCODE_GOOD;
 }
 
+#ifdef UA_ENABLE_DEWESOFT
+static UA_StatusCode
+writeArrayDimensionsAttribute(UA_Server *server, UA_VariableNode *node,
+                              const UA_NodeId *sessionId, void *sessionHandle,
+                              size_t arrayDimensionsSize, UA_UInt32 *arrayDimensions) {
+#else
 static UA_StatusCode
 writeArrayDimensionsAttribute(UA_Server *server, UA_VariableNode *node,
                               size_t arrayDimensionsSize, UA_UInt32 *arrayDimensions) {
+#endif
     /* If this is a variabletype, there must be no instances or subtypes of it
      * when we do the change */
     if(node->nodeClass == UA_NODECLASS_VARIABLETYPE &&
@@ -333,7 +340,11 @@ writeArrayDimensionsAttribute(UA_Server *server, UA_VariableNode *node,
     /* Check if the current value is compatible with the array dimensions */
     UA_DataValue value;
     UA_DataValue_init(&value);
+#ifdef UA_ENABLE_DEWESOFT
+    retval = readValueAttribute(server, node, sessionId, sessionHandle, &value);
+#else
     retval = readValueAttribute(server, node, &value);
+#endif
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
     if(value.hasValue) {
@@ -364,17 +375,33 @@ writeArrayDimensionsAttribute(UA_Server *server, UA_VariableNode *node,
 /***********************/
 
 static UA_StatusCode
+#ifdef UA_ENABLE_DEWESOFT
+writeValueRankAttributeWithVT(UA_Server *server, UA_VariableNode *node,
+                              const UA_NodeId *sessionId, void *sessionHandle,
+                              UA_Int32 valueRank) {
+#else
 writeValueRankAttributeWithVT(UA_Server *server, UA_VariableNode *node,
                               UA_Int32 valueRank) {
+#endif
     const UA_VariableTypeNode *vt = getVariableNodeType(server, node);
     if(!vt)
         return UA_STATUSCODE_BADINTERNALERROR;
+#ifdef UA_ENABLE_DEWESOFT
+    return writeValueRankAttribute(server, node, sessionId, sessionHandle, valueRank, vt->valueRank);
+#else
     return writeValueRankAttribute(server, node, valueRank, vt->valueRank);
+#endif
 }
 
 UA_StatusCode
+#ifdef UA_ENABLE_DEWESOFT
+writeValueRankAttribute(UA_Server *server, UA_VariableNode *node,
+                        const UA_NodeId *sessionId, void *sessionHandle,
+                        UA_Int32 valueRank, UA_Int32 constraintValueRank) {
+#else
 writeValueRankAttribute(UA_Server *server, UA_VariableNode *node, UA_Int32 valueRank,
                         UA_Int32 constraintValueRank) {
+#endif
     /* If this is a variabletype, there must be no instances or subtypes of it
        when we do the change */
     if(node->nodeClass == UA_NODECLASS_VARIABLETYPE &&
@@ -394,7 +421,11 @@ writeValueRankAttribute(UA_Server *server, UA_VariableNode *node, UA_Int32 value
            dimensions zero indicate a scalar for compatibleValueRankArrayDimensions. */
         UA_DataValue value;
         UA_DataValue_init(&value);
+#ifdef UA_ENABLE_DEWESOFT
+        retval = readValueAttribute(server, node, sessionId, sessionHandle, &value);
+#else
         retval = readValueAttribute(server, node, &value);
+#endif
         if(retval != UA_STATUSCODE_GOOD)
             return retval;
         if(!value.hasValue || !value.value.type) {
@@ -420,8 +451,14 @@ writeValueRankAttribute(UA_Server *server, UA_VariableNode *node, UA_Int32 value
 /**********************/
 
 static UA_StatusCode
+#ifdef UA_ENABLE_DEWESOFT
+writeDataTypeAttribute(UA_Server *server, UA_VariableNode *node,
+                       const UA_NodeId *sessionId, void *sessionHandle,
+                       const UA_NodeId *dataType, const UA_NodeId *constraintDataType) {
+#else
 writeDataTypeAttribute(UA_Server *server, UA_VariableNode *node,
                        const UA_NodeId *dataType, const UA_NodeId *constraintDataType) {
+#endif
     /* If this is a variabletype, there must be no instances or subtypes of it
        when we do the change */
     if(node->nodeClass == UA_NODECLASS_VARIABLETYPE &&
@@ -435,7 +472,11 @@ writeDataTypeAttribute(UA_Server *server, UA_VariableNode *node,
     /* Check if the current value would match the new type */
     UA_DataValue value;
     UA_DataValue_init(&value);
+#ifdef UA_ENABLE_DEWESOFT
+    UA_StatusCode retval = readValueAttribute(server, node, sessionId, sessionHandle, &value);
+#else
     UA_StatusCode retval = readValueAttribute(server, node, &value);
+#endif
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
     if(value.hasValue) {
@@ -462,12 +503,22 @@ writeDataTypeAttribute(UA_Server *server, UA_VariableNode *node,
 }
 
 static UA_StatusCode
+#ifdef UA_ENABLE_DEWESOFT
+writeDataTypeAttributeWithVT(UA_Server *server, UA_VariableNode *node,
+                             const UA_NodeId *sessionId, void *sessionHandle,
+                             const UA_NodeId *dataType) {
+#else
 writeDataTypeAttributeWithVT(UA_Server *server, UA_VariableNode *node,
                              const UA_NodeId *dataType) {
+#endif
     const UA_VariableTypeNode *vt = getVariableNodeType(server, node);
     if(!vt)
         return UA_STATUSCODE_BADINTERNALERROR;
+#ifdef UA_ENABLE_DEWESOFT
+    return writeDataTypeAttribute(server, node, sessionId, sessionHandle, dataType, &vt->dataType);
+#else
     return writeDataTypeAttribute(server, node, dataType, &vt->dataType);
+#endif
 }
 
 /*******************/
@@ -496,6 +547,9 @@ readValueAttributeFromNode(UA_Server *server, const UA_VariableNode *vn, UA_Data
 
 static UA_StatusCode
 readValueAttributeFromDataSource(const UA_VariableNode *vn, UA_DataValue *v,
+#ifdef UA_ENABLE_DEWESOFT
+                                 const UA_NodeId *sessionId, void *sessionHandle,
+#endif
                                  UA_TimestampsToReturn timestamps,
                                  UA_NumericRange *rangeptr) {
     if(!vn->value.dataSource.read)
@@ -504,14 +558,23 @@ readValueAttributeFromDataSource(const UA_VariableNode *vn, UA_DataValue *v,
                                   timestamps == UA_TIMESTAMPSTORETURN_BOTH);
     UA_RCU_UNLOCK();
     UA_StatusCode retval =
+#ifdef UA_ENABLE_DEWESOFT
+        vn->value.dataSource.read(vn->value.dataSource.handle, vn->nodeId,
+                                  sessionId, sessionHandle,
+                                  sourceTimeStamp, rangeptr, v);
+#else
         vn->value.dataSource.read(vn->value.dataSource.handle, vn->nodeId,
                                   sourceTimeStamp, rangeptr, v);
+#endif
     UA_RCU_LOCK();
     return retval;
 }
 
 static UA_StatusCode
 readValueAttributeComplete(UA_Server *server, const UA_VariableNode *vn,
+#ifdef UA_ENABLE_DEWESOFT
+                           const UA_NodeId *sessionId, void *sessionHandle,
+#endif
                            UA_TimestampsToReturn timestamps, const UA_String *indexRange,
                            UA_DataValue *v) {
     /* Compute the index range */
@@ -529,7 +592,11 @@ readValueAttributeComplete(UA_Server *server, const UA_VariableNode *vn,
     if(vn->valueSource == UA_VALUESOURCE_DATA)
         retval = readValueAttributeFromNode(server, vn, v, rangeptr);
     else
+#ifdef UA_ENABLE_DEWESOFT
+        retval = readValueAttributeFromDataSource(vn, v, sessionId, sessionHandle, timestamps, rangeptr);
+#else
         retval = readValueAttributeFromDataSource(vn, v, timestamps, rangeptr);
+#endif
 
     /* Clean up */
     if(rangeptr)
@@ -538,8 +605,16 @@ readValueAttributeComplete(UA_Server *server, const UA_VariableNode *vn,
 }
 
 UA_StatusCode
+#ifdef UA_ENABLE_DEWESOFT
+readValueAttribute(UA_Server *server, const UA_VariableNode *vn,
+                   const UA_NodeId *sessionId, void *sessionHandle,
+                   UA_DataValue *v) {
+    return readValueAttributeComplete(server, vn, sessionId, sessionHandle,
+                                      UA_TIMESTAMPSTORETURN_NEITHER, NULL, v);
+#else
 readValueAttribute(UA_Server *server, const UA_VariableNode *vn, UA_DataValue *v) {
     return readValueAttributeComplete(server, vn, UA_TIMESTAMPSTORETURN_NEITHER, NULL, v);
+#endif
 }
 
 static UA_StatusCode
@@ -588,6 +663,9 @@ writeValueAttributeWithRange(UA_VariableNode *node, const UA_DataValue *value,
 
 static UA_StatusCode
 writeValueAttribute(UA_Server *server, UA_VariableNode *node,
+#ifdef UA_ENABLE_DEWESOFT
+                    const UA_NodeId *sessionId, void *sessionHandle,
+#endif
                     const UA_DataValue *value, const UA_String *indexRange) {
     /* Parse the range */
     UA_NumericRange range;
@@ -650,7 +728,11 @@ writeValueAttribute(UA_Server *server, UA_VariableNode *node,
         if(node->value.dataSource.write) {
             UA_RCU_UNLOCK();
             retval = node->value.dataSource.write(node->value.dataSource.handle,
-                                                  node->nodeId, &editableValue.value, rangeptr);
+                                                  node->nodeId,
+#ifdef UA_ENABLE_DEWESOFT
+                                                  sessionId, sessionHandle,
+#endif
+                                                  &editableValue.value, rangeptr);
             UA_RCU_LOCK();
         } else {
             retval = UA_STATUSCODE_BADWRITENOTSUPPORTED;
@@ -809,6 +891,9 @@ void Service_Read_single(UA_Server *server, UA_Session *session,
             break;
         }
         retval = readValueAttributeComplete(server, (const UA_VariableNode*)node,
+#ifdef UA_ENABLE_DEWESOFT
+                                            &session->sessionId, session->sessionHandle,
+#endif
                                             timestamps, &id->indexRange, v);
         break;
     }
@@ -1139,25 +1224,39 @@ copyAttributeIntoNode(UA_Server *server, UA_Session *session,
             CHECK_USERWRITEMASK(UA_WRITEMASK_VALUEFORVARIABLETYPE);
         }
         retval = writeValueAttribute(server, (UA_VariableNode*)node,
+#ifdef UA_ENABLE_DEWESOFT
+                                     &session->sessionId, session->sessionHandle,
+#endif
                                      &wvalue->value, &wvalue->indexRange);
         break;
     case UA_ATTRIBUTEID_DATATYPE:
         CHECK_NODECLASS_WRITE(UA_NODECLASS_VARIABLE | UA_NODECLASS_VARIABLETYPE);
         CHECK_USERWRITEMASK(UA_WRITEMASK_DATATYPE);
         CHECK_DATATYPE_SCALAR(NODEID);
-        retval = writeDataTypeAttributeWithVT(server, (UA_VariableNode*)node, (const UA_NodeId*)value);
+        retval = writeDataTypeAttributeWithVT(server, (UA_VariableNode*)node,
+#ifdef UA_ENABLE_DEWESOFT
+                                              &session->sessionId, session->sessionHandle,
+#endif
+                                              (const UA_NodeId*)value);
         break;
     case UA_ATTRIBUTEID_VALUERANK:
         CHECK_NODECLASS_WRITE(UA_NODECLASS_VARIABLE | UA_NODECLASS_VARIABLETYPE);
         CHECK_USERWRITEMASK(UA_WRITEMASK_VALUERANK);
         CHECK_DATATYPE_SCALAR(INT32);
-        retval = writeValueRankAttributeWithVT(server, (UA_VariableNode*)node, *(const UA_Int32*)value);
+        retval = writeValueRankAttributeWithVT(server, (UA_VariableNode*)node,
+#ifdef UA_ENABLE_DEWESOFT
+                                               &session->sessionId, session->sessionHandle,
+#endif
+                                               *(const UA_Int32*)value);
         break;
     case UA_ATTRIBUTEID_ARRAYDIMENSIONS:
         CHECK_NODECLASS_WRITE(UA_NODECLASS_VARIABLE | UA_NODECLASS_VARIABLETYPE);
         CHECK_USERWRITEMASK(UA_WRITEMASK_ARRRAYDIMENSIONS);
         CHECK_DATATYPE_ARRAY(UINT32);
         retval = writeArrayDimensionsAttribute(server, (UA_VariableNode*)node,
+#ifdef UA_ENABLE_DEWESOFT
+                                               &session->sessionId, session->sessionHandle,
+#endif
                                                wvalue->value.value.arrayLength,
                                                (UA_UInt32 *)wvalue->value.value.data);
         break;

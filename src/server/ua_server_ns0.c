@@ -24,8 +24,11 @@ UA_THREAD_LOCAL UA_Session* methodCallSession = NULL;
 /****************/
 
 static UA_StatusCode
-readStatus(void *handle, const UA_NodeId nodeid, UA_Boolean sourceTimeStamp,
-           const UA_NumericRange *range, UA_DataValue *value) {
+readStatus(void *handle, const UA_NodeId nodeid,
+#ifdef UA_ENABLE_DEWESOFT
+               const UA_NodeId *sessionId, void *sessionHandle,
+#endif
+           UA_Boolean sourceTimeStamp, const UA_NumericRange *range, UA_DataValue *value) {
     if(range) {
         value->hasStatus = true;
         value->status = UA_STATUSCODE_BADINDEXRANGEINVALID;
@@ -54,8 +57,11 @@ readStatus(void *handle, const UA_NodeId nodeid, UA_Boolean sourceTimeStamp,
 }
 
 static UA_StatusCode
-readNamespaces(void *handle, const UA_NodeId nodeid, UA_Boolean sourceTimestamp,
-               const UA_NumericRange *range, UA_DataValue *value) {
+readNamespaces(void *handle, const UA_NodeId nodeid,
+#ifdef UA_ENABLE_DEWESOFT
+               const UA_NodeId *sessionId, void *sessionHandle,
+#endif
+               UA_Boolean sourceTimestamp, const UA_NumericRange *range, UA_DataValue *value) {
     if(range) {
         value->hasStatus = true;
         value->status = UA_STATUSCODE_BADINDEXRANGEINVALID;
@@ -76,8 +82,11 @@ readNamespaces(void *handle, const UA_NodeId nodeid, UA_Boolean sourceTimestamp,
 }
 
 static UA_StatusCode
-writeNamespaces(void *handle, const UA_NodeId nodeid, const UA_Variant *data,
-                const UA_NumericRange *range) {
+writeNamespaces(void *handle, const UA_NodeId nodeid,
+#ifdef UA_ENABLE_DEWESOFT
+                const UA_NodeId *sessionId, void *sessionHandle,
+#endif
+                const UA_Variant *data, const UA_NumericRange *range) {
     UA_Server *server = (UA_Server*)handle;
 
     /* Check the data type */
@@ -112,8 +121,11 @@ writeNamespaces(void *handle, const UA_NodeId nodeid, const UA_Variant *data,
 }
 
 static UA_StatusCode
-readCurrentTime(void *handle, const UA_NodeId nodeid, UA_Boolean sourceTimeStamp,
-                const UA_NumericRange *range, UA_DataValue *value) {
+readCurrentTime(void *handle, const UA_NodeId nodeid,
+#ifdef UA_ENABLE_DEWESOFT
+                const UA_NodeId *sessionId, void *sessionHandle,
+#endif
+                UA_Boolean sourceTimeStamp, const UA_NumericRange *range, UA_DataValue *value) {
     if(range) {
         value->hasStatus = true;
         value->status = UA_STATUSCODE_BADINDEXRANGEINVALID;

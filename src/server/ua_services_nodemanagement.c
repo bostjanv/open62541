@@ -186,7 +186,11 @@ typeCheckVariableNode(UA_Server *server, UA_Session *session,
      * regular read. */
     UA_DataValue value;
     UA_DataValue_init(&value);
-    UA_StatusCode retval = readValueAttribute(server, node, &value);
+    UA_StatusCode retval = readValueAttribute(server, node,
+#ifdef UA_ENABLE_DEWESOFT
+                                              &session->sessionId, session->sessionHandle,
+#endif
+                                              &value);
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
 
@@ -208,7 +212,11 @@ typeCheckVariableNode(UA_Server *server, UA_Session *session,
      * to be done before copying the datatype from the vt, as setting the datatype
      * triggers a typecheck. */
     if(!value.hasValue || !value.value.type) {
-        retval = readValueAttribute(server, (const UA_VariableNode*)vt, &value);
+        retval = readValueAttribute(server, (const UA_VariableNode*)vt,
+#ifdef UA_ENABLE_DEWESOFT
+                                    &session->sessionId, session->sessionHandle,
+#endif
+                                    &value);
         if(retval == UA_STATUSCODE_GOOD && value.hasValue && value.value.type) {
             UA_RCU_UNLOCK();
             retval = UA_Server_writeValue(server, node->nodeId, value.value);

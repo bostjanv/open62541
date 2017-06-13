@@ -10,13 +10,19 @@
 extern "C" {
 #endif
 
-UA_StatusCode UA_EXPORT
-activateSession_default(const UA_NodeId *sessionId,
-                        const UA_ExtensionObject *userIdentityToken,
-                        void **sessionHandle);
+UA_EXPORT UA_StatusCode
+#ifdef UA_ENABLE_DEWESOFT
+activateSession_default(void *handle, const UA_NodeId *sessionId, const UA_ExtensionObject *userIdentityToken, void **sessionHandle);
+#else
+activateSession_default(const UA_NodeId *sessionId, const UA_ExtensionObject *userIdentityToken, void **sessionHandle);
+#endif
 
-void UA_EXPORT
+UA_EXPORT void
+#ifdef UA_ENABLE_DEWESOFT
+closeSession_default(void *handle, const UA_NodeId *sessionId, void *sessionHandle);
+#else
 closeSession_default(const UA_NodeId *sessionId, void *sessionHandle);
+#endif
 
 UA_UInt32 UA_EXPORT
 getUserRightsMask_default(const UA_NodeId *sessionId, void *sessionHandle,

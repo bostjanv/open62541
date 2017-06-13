@@ -241,8 +241,14 @@ void getNodeType(UA_Server *server, const UA_Node *node, UA_NodeId *typeId);
 /* Check Information Model Consistency */
 /***************************************/
 
+#ifdef UA_ENABLE_DEWESOFT
+UA_StatusCode
+readValueAttribute(UA_Server *server, const UA_VariableNode *vn,
+                   const UA_NodeId *sessionId, void *sessionHandle, UA_DataValue *v);
+#else
 UA_StatusCode
 readValueAttribute(UA_Server *server, const UA_VariableNode *vn, UA_DataValue *v);
+#endif
 
 UA_StatusCode
 typeCheckValue(UA_Server *server, const UA_NodeId *targetDataTypeId,
@@ -269,9 +275,16 @@ compatibleDataType(UA_Server *server, const UA_NodeId *dataType,
 UA_StatusCode
 compatibleValueRankArrayDimensions(UA_Int32 valueRank, size_t arrayDimensionsSize);
 
+#ifdef UA_ENABLE_DEWESOFT
+UA_StatusCode
+writeValueRankAttribute(UA_Server *server, UA_VariableNode *node,
+                        const UA_NodeId *sessionId, void *sessionHandle,
+                        UA_Int32 valueRank, UA_Int32 constraintValueRank);
+#else
 UA_StatusCode
 writeValueRankAttribute(UA_Server *server, UA_VariableNode *node,
                         UA_Int32 valueRank, UA_Int32 constraintValueRank);
+#endif
 
 UA_StatusCode
 compatibleValueRanks(UA_Int32 valueRank, UA_Int32 constraintValueRank);

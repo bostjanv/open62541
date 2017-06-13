@@ -69,7 +69,11 @@ const UA_EXPORT UA_ServerConfig UA_ServerConfig_standard = {
     NULL, /* .networkLayers */
 
     /* Access Control */
-    {true, true,
+    {
+#ifdef UA_ENABLE_DEWESOFT
+     NULL,
+#endif
+     true, true,
      activateSession_default, closeSession_default,
      getUserRightsMask_default, getUserAccessLevel_default,
      getUserExecutable_default, getUserExecutableOnObject_default,

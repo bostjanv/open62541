@@ -61,8 +61,14 @@ UA_SessionManager_cleanupTimedOut(UA_SessionManager *sm,
             continue;
         UA_LOG_INFO_SESSION(sm->server->config.logger, &sentry->session,
                             "Session has timed out");
+#ifdef UA_ENABLE_DEWESOFT
+        void *handle = sm->server->config.accessControl.handle;
+        sm->server->config.accessControl.closeSession(handle, &sentry->session.sessionId,
+                                                      sentry->session.sessionHandle);
+#else
         sm->server->config.accessControl.closeSession(&sentry->session.sessionId,
                                                       sentry->session.sessionHandle);
+#endif
         removeSession(sm, sentry);
     }
 }

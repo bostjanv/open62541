@@ -202,6 +202,14 @@ __UA_Client_Service(UA_Client *client, const void *request,
                     const UA_DataType *requestType, void *response,
                     const UA_DataType *responseType);
 
+#ifdef UA_ENABLE_DEWESOFT
+UA_StatusCode UA_EXPORT
+DS_Client_sendRequest(UA_Client *client, const void *request, const UA_DataType *requestType, UA_UInt32 *requestId);
+
+void UA_EXPORT
+DS_Client_receiveResponse(UA_Client *client, UA_UInt32 requestId, void *response, const UA_DataType *responseType);
+#endif
+
 /**
  * Attribute Service Set
  * ^^^^^^^^^^^^^^^^^^^^^ */

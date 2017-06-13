@@ -21,8 +21,11 @@ UA_UsernamePasswordLogin usernamePasswords[2] = {
     { UA_STRING_STATIC("user2"), UA_STRING_STATIC("password1") } };
 
 UA_StatusCode
-activateSession_default(const UA_NodeId *sessionId,
-                        const UA_ExtensionObject *userIdentityToken,
+activateSession_default(
+#ifdef UA_ENABLE_DEWESOFT
+                        void *handle,
+#endif
+                        const UA_NodeId *sessionId, const UA_ExtensionObject *userIdentityToken,
                         void **sessionHandle) {
     /* Could the token be decoded? */
     if(userIdentityToken->encoding < UA_EXTENSIONOBJECT_DECODED)
@@ -82,8 +85,11 @@ activateSession_default(const UA_NodeId *sessionId,
 }
 
 void
-closeSession_default(const UA_NodeId *sessionId,
-                     void *sessionHandle) {
+closeSession_default(
+#ifdef UA_ENABLE_DEWESOFT
+                     void *handle,
+#endif
+                     const UA_NodeId *sessionId, void *sessionHandle) {
     /* no handle to clean up */
 }
 

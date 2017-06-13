@@ -815,3 +815,80 @@ __UA_Client_Service(UA_Client *client, const void *request, const UA_DataType *r
     /* Clean up the authentication token */
     UA_NodeId_init(&rr->authenticationToken);
 }
+
+#ifdef UA_ENABLE_DEWESOFT
+UA_StatusCode
+DS_Client_sendRequest(UA_Client *client, const void *request, const UA_DataType *requestType, UA_UInt32 *requestId) {
+    
+
+    /* Make sure we have a valid session */
+    UA_StatusCode retval = UA_Client_manuallyRenewSecureChannel(client);
+    if (retval != UA_STATUSCODE_GOOD) {        
+        client->state = UA_CLIENTSTATE_ERRORED;
+        return UA_STATUSCODE_BADCOMMUNICATIONERROR;
+    }
+
+    /* Adjusting the request header. The const attribute is violated, but we
+    * only touch the following members: */
+    UA_RequestHeader *rr = (UA_RequestHeader*)(uintptr_t)request;
+    rr->authenticationToken = client->authenticationToken; /* cleaned up at the end */
+    rr->timestamp = UA_DateTime_now();
+    rr->requestHandle = ++client->requestHandle;
+
+    /* Send the request */
+    *requestId = ++client->requestId;
+    UA_LOG_DEBUG(client->config.logger, UA_LOGCATEGORY_CLIENT,
+        "Sending a request of type %i", requestType->typeId.identifier.numeric);
+    retval = UA_SecureChannel_sendBinaryMessage(&client->channel, *requestId, rr, requestType);
+    if (retval != UA_STATUSCODE_GOOD) {
+        if (retval == UA_STATUSCODE_BADENCODINGLIMITSEXCEEDED)
+            return UA_STATUSCODE_BADENCODINGLIMITSEXCEEDED;
+        /*else
+            respHeader->serviceResult = retval;*/
+        client->state = UA_CLIENTSTATE_FAULTED;
+        UA_NodeId_init(&rr->authenticationToken);
+    }
+
+    /* Clean up the authentication token */
+    UA_NodeId_init(&rr->authenticationToken);
+
+    return retval;
+}
+
+void
+DS_Client_receiveResponse(UA_Client *client, UA_UInt32 requestId, void *response, const UA_DataType *responseType) {
+    /* Prepare the response and the structure we give into processServiceResponse */
+    UA_StatusCode retval;
+    UA_init(response, responseType);
+    struct ResponseDescription rd = { client, false, requestId, response, responseType };
+    UA_ResponseHeader *respHeader = (UA_ResponseHeader*)response;
+
+    /* Retrieve the response */
+    UA_DateTime maxDate = UA_DateTime_nowMonotonic() + (client->config.timeout * UA_MSEC_TO_DATETIME);
+    do {
+        /* Retrieve complete chunks */
+        UA_ByteString reply = UA_BYTESTRING_NULL;
+        UA_Boolean realloced = false;
+        UA_DateTime now = UA_DateTime_nowMonotonic();
+        if (now < maxDate) {
+            UA_UInt32 timeout = (UA_UInt32)((maxDate - now) / UA_MSEC_TO_DATETIME);
+            retval = UA_Connection_receiveChunksBlocking(&client->connection, &reply, &realloced, timeout);
+        }
+        else {
+            retval = UA_STATUSCODE_GOODNONCRITICALTIMEOUT;
+        }
+        if (retval != UA_STATUSCODE_GOOD) {
+            respHeader->serviceResult = retval;
+            break;
+        }
+        /* ProcessChunks and call processServiceResponse for complete messages */
+        UA_SecureChannel_processChunks(&client->channel, &reply,
+            (UA_ProcessMessageCallback*)processServiceResponse, &rd);
+        /* Free the received buffer */
+        if (!realloced)
+            client->connection.releaseRecvBuffer(&client->connection, &reply);
+        else
+            UA_ByteString_deleteMembers(&reply);
+    } while (!rd.processed);
+}
+#endif

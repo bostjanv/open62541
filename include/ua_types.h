@@ -158,6 +158,15 @@ typedef struct {
     UA_Byte *data; /* The content (not null-terminated) */
 } UA_String;
 
+#ifdef UA_ENABLE_DEWESOFT
+typedef struct
+{
+    size_t length;
+    UA_Byte* data;
+    size_t capacity;
+} DS_ByteChunk;
+#endif
+
 /* Copies the content on the heap. Returns a null-string when alloc fails */
 UA_String UA_EXPORT UA_String_fromChars(char const src[]) UA_FUNC_ATTR_WARN_UNUSED_RESULT;
 

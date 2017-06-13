@@ -72,10 +72,18 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
         return;
     }
 
+
     /* Callback into userland access control */
+#ifdef UA_ENABLE_DEWESOFT
+    void *handle = server->config.accessControl.handle;
+    response->responseHeader.serviceResult =
+        server->config.accessControl.activateSession(handle, &session->sessionId, &request->userIdentityToken,
+                                                     &session->sessionHandle);
+#else
     response->responseHeader.serviceResult =
         server->config.accessControl.activateSession(&session->sessionId, &request->userIdentityToken,
                                                      &session->sessionHandle);
+#endif
     if(response->responseHeader.serviceResult != UA_STATUSCODE_GOOD)
         return;
 
@@ -97,7 +105,12 @@ Service_CloseSession(UA_Server *server, UA_Session *session, const UA_CloseSessi
                      UA_CloseSessionResponse *response) {
     UA_LOG_INFO_SESSION(server->config.logger, session, "CloseSession");
     /* Callback into userland access control */
+#ifdef UA_ENABLE_DEWESOFT
+    void *handle = server->config.accessControl.handle;
+    server->config.accessControl.closeSession(handle, &session->sessionId, session->sessionHandle);
+#else
     server->config.accessControl.closeSession(&session->sessionId, session->sessionHandle);
+#endif
     response->responseHeader.serviceResult =
         UA_SessionManager_removeSession(&server->sessionManager, &session->authenticationToken);
 }

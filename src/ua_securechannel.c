@@ -45,7 +45,11 @@ void UA_SecureChannel_deleteMembersCleanup(UA_SecureChannel *channel) {
     /* Remove the buffered chunks */
     struct ChunkEntry *ch, *temp_ch;
     LIST_FOREACH_SAFE(ch, &channel->chunks, pointers, temp_ch) {
+#ifdef UA_ENABLE_DEWESOFT
+        UA_ByteString_deleteMembers((UA_ByteString*)&ch->bytes);
+#else
         UA_ByteString_deleteMembers(&ch->bytes);
+#endif
         LIST_REMOVE(ch, pointers);
         UA_free(ch);
     }
@@ -256,7 +260,11 @@ UA_SecureChannel_removeChunk(UA_SecureChannel *channel, UA_UInt32 requestId) {
     struct ChunkEntry *ch;
     LIST_FOREACH(ch, &channel->chunks, pointers) {
         if(ch->requestId == requestId) {
+#ifdef UA_ENABLE_DEWESOFT
+            UA_ByteString_deleteMembers((UA_ByteString*)&ch->bytes);
+#else
             UA_ByteString_deleteMembers(&ch->bytes);
+#endif
             LIST_REMOVE(ch, pointers);
             UA_free(ch);
             return;
@@ -265,6 +273,26 @@ UA_SecureChannel_removeChunk(UA_SecureChannel *channel, UA_UInt32 requestId) {
 }
 
 /* assume that chunklength fits */
+#ifdef UA_ENABLE_DEWESOFT
+static void
+appendChunk(struct ChunkEntry *ch, const UA_ByteString *msg,
+            size_t offset, size_t chunklength) {
+    size_t new_size = ch->bytes.length + chunklength;
+    if (new_size > ch->bytes.capacity) {        
+        size_t capacity = 3 * new_size / 2;
+        UA_Byte* new_bytes = (UA_Byte *)UA_realloc(ch->bytes.data, capacity);
+        if (!new_bytes) {
+            //UA_ByteString_deleteMembers(&ch->bytes);
+
+            return;
+        }
+        ch->bytes.data = new_bytes;
+        ch->bytes.capacity = capacity;
+    }
+    memcpy(&ch->bytes.data[ch->bytes.length], &msg->data[offset], chunklength);
+    ch->bytes.length += chunklength;
+}
+#else
 static void
 appendChunk(struct ChunkEntry *ch, const UA_ByteString *msg,
             size_t offset, size_t chunklength) {
@@ -277,6 +305,7 @@ appendChunk(struct ChunkEntry *ch, const UA_ByteString *msg,
     memcpy(&ch->bytes.data[ch->bytes.length], &msg->data[offset], chunklength);
     ch->bytes.length += chunklength;
 }
+#endif
 
 static void
 UA_SecureChannel_appendChunk(UA_SecureChannel *channel, UA_UInt32 requestId,
@@ -302,21 +331,38 @@ UA_SecureChannel_appendChunk(UA_SecureChannel *channel, UA_UInt32 requestId,
         if(!ch)
             return;
         ch->requestId = requestId;
+#ifdef UA_ENABLE_DEWESOFT
+        ch->bytes.data = channel->recyclingByteChunk.data;
+        ch->bytes.capacity = channel->recyclingByteChunk.capacity;
+        ch->bytes.length = 0;
+#else
         UA_ByteString_init(&ch->bytes);
+#endif
         LIST_INSERT_HEAD(&channel->chunks, ch, pointers);
     }
 
     appendChunk(ch, msg, offset, chunklength);
 }
 
+#ifdef UA_ENABLE_DEWESOFT
+static DS_ByteChunk
+#else
 static UA_ByteString
+#endif
 UA_SecureChannel_finalizeChunk(UA_SecureChannel *channel, UA_UInt32 requestId,
                                const UA_ByteString *msg, size_t offset,
                                size_t chunklength, UA_Boolean *deleteChunk) {
     if(msg->length - offset < chunklength) {
         /* can't process all chunks for that request */
         UA_SecureChannel_removeChunk(channel, requestId);
+#ifdef UA_ENABLE_DEWESOFT
+        {
+            DS_ByteChunk nullChunk = { 0, NULL, 0 };
+            return nullChunk;
+        }
+#else
         return UA_BYTESTRING_NULL;
+#endif
     }
 
     struct ChunkEntry *ch;
@@ -325,11 +371,18 @@ UA_SecureChannel_finalizeChunk(UA_SecureChannel *channel, UA_UInt32 requestId,
             break;
     }
 
+#ifdef UA_ENABLE_DEWESOFT
+    DS_ByteChunk bytes;
+#else
     UA_ByteString bytes;
+#endif
     if(!ch) {
         *deleteChunk = false;
         bytes.length = chunklength;
         bytes.data = msg->data + offset;
+#ifdef UA_ENABLE_DEWESOFT
+         bytes.capacity = chunklength;
+#endif
     } else {
         *deleteChunk = true;
         appendChunk(ch, msg, offset, chunklength);
@@ -429,15 +482,31 @@ UA_SecureChannel_processChunks(UA_SecureChannel *channel, const UA_ByteString *c
             break;
         case UA_CHUNKTYPE_FINAL: {
             UA_Boolean realloced = false;
+#ifdef UA_ENABLE_DEWESOFT
+            DS_ByteChunk message =
+#else
             UA_ByteString message =
+#endif
                 UA_SecureChannel_finalizeChunk(channel, sequenceHeader.requestId, chunks, offset,
                                                header.messageHeader.messageSize - processed_header,
                                                &realloced);
             if(message.length > 0) {
+#ifdef UA_ENABLE_DEWESOFT
+                 callback(application,(UA_SecureChannel *)channel,(UA_MessageType)(header.messageHeader.messageTypeAndChunkType & 0x00ffffff),
+                         sequenceHeader.requestId, (const UA_ByteString*)&message);
+                if (realloced) {
+                    DS_ByteChunk *recyclingByteChunk = &((UA_SecureChannel *)channel)->recyclingByteChunk;
+                    recyclingByteChunk->capacity = message.capacity;
+                    recyclingByteChunk->data = message.data;
+                    recyclingByteChunk->length = 0;
+                    //DS_ByteChunk_deleteMembers(&message);
+                }
+#else
                 callback(application,(UA_SecureChannel *)channel,(UA_MessageType)(header.messageHeader.messageTypeAndChunkType & 0x00ffffff),
                          sequenceHeader.requestId, &message);
                 if(realloced)
                     UA_ByteString_deleteMembers(&message);
+#endif
             }
             break; }
         case UA_CHUNKTYPE_ABORT:

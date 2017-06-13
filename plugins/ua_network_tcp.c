@@ -113,6 +113,16 @@ socket_write(UA_Connection *connection, UA_ByteString *buf) {
                 UA_ByteString_deleteMembers(buf);
                 return UA_STATUSCODE_BADCONNECTIONCLOSED;
             }
+
+#ifdef UA_ENABLE_DEWESOFT
+            if (n == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK) {
+                fd_set wfds;
+                FD_ZERO(&wfds);
+                FD_SET(connection->sockfd, &wfds);
+                select(connection->sockfd + 1, NULL, &wfds, NULL, NULL);
+            }
+#endif
+
         } while(n < 0);
         nWritten += (size_t)n;
     } while(nWritten < buf->length);
@@ -187,6 +197,15 @@ socket_recv(UA_Connection *connection, UA_ByteString *response, UA_UInt32 timeou
     /* error case */
     if(ret < 0) {
         UA_ByteString_deleteMembers(response);
+
+#ifdef UA_ENABLE_DEWESOFT
+        DWORD errorcode = WSAGetLastError();
+         if (errorcode == WSAETIMEDOUT) {
+            log_debug(1, "recv failed: %x", errorcode);
+            return UA_STATUSCODE_GOOD; /* statuscode_good but no data -> retry */
+        }
+#endif
+
         if(errno__ == INTERRUPTED || (timeout > 0) ?
            false : (errno__ == EAGAIN || errno__ == WOULDBLOCK))
             return UA_STATUSCODE_GOOD; /* statuscode_good but no data -> retry */
@@ -483,7 +502,20 @@ ServerNetworkLayerTCP_getJobs(UA_ServerNetworkLayer *nl, UA_Job **jobs,
     UA_Int32 highestfd = setFDSet(layer, &fdset);
     setFDSet(layer, &errset);
     struct timeval tmptv = {0, timeout * 1000};
+
+#ifdef UA_ENABLE_DEWESOFT
+    CriticalSectionWithOwnerCApiLeave(nl->mutexHandle);
+#endif
+
     UA_Int32 resultsize = select(highestfd+1, &fdset, NULL, &errset, &tmptv);
+
+#ifdef UA_ENABLE_DEWESOFT
+    CriticalSectionWithOwnerCApiEnter(nl->mutexHandle);
+    if (resultsize == SOCKET_ERROR) {
+        log_debug(1, "select failed: %d", WSAGetLastError());
+    }
+#endif
+
     if(totalJobs == 0 && resultsize <= 0) {
         free(js);
         *jobs = NULL;
@@ -501,6 +533,14 @@ ServerNetworkLayerTCP_getJobs(UA_ServerNetworkLayer *nl, UA_Job **jobs,
 #endif
         {
             socket_set_nonblocking(newsockfd);
+
+#ifdef UA_ENABLE_DEWESOFT
+            // NOTE(bostjan): Should we set send/recv bufferer sizez?
+            // Disabling Nagle seems to improve performance. This is counterintuitive.
+            // IMHO it should improve latency but not througput.
+            // See https://en.wikipedia.org/wiki/Nagle%27s_algorithm
+#endif
+
             /* Do not merge packets on the socket (disable Nagle's algorithm) */
             int i = 1;
             setsockopt(newsockfd, IPPROTO_TCP, TCP_NODELAY, (const char *)&i, sizeof(i));
@@ -750,6 +790,13 @@ UA_ClientConnectionTCP(UA_ConnectionConfig conf, const char *endpointUrl,
     if(sso_result < 0)
         UA_LOG_WARNING(logger, UA_LOGCATEGORY_NETWORK,
                        "Couldn't set SO_NOSIGPIPE");
+#endif
+
+#ifdef UA_ENABLE_DEWESOFT
+    // NOTE(bostjan): Should we set send/recv buffer sizez?
+    // Not sure why disabling Nagle improves performance.
+    int i = 1;
+    setsockopt(connection.sockfd, IPPROTO_TCP, TCP_NODELAY, (const char *)&i, sizeof(i));
 #endif
 
     return connection;

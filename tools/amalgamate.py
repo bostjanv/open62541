@@ -45,10 +45,17 @@ file.write(u"""/* THIS IS A SINGLE-FILE DISTRIBUTION CONCATENATED FROM THE OPEN6
  * A PARTICULAR PURPOSE.
  */\n\n""" % args.version)
 
+
 if is_c:
     file.write(u'''#ifndef UA_DYNAMIC_LINKING_EXPORT
 # define UA_DYNAMIC_LINKING_EXPORT
 # define MDNSD_DYNAMIC_LINKING
+#endif
+
+#ifdef UA_ENABLE_DEWESOFT
+#include "config.h"
+#include "CriticalSectionWithOwnerCApi.h"
+#include "Log.h"
 #endif
 
 #include "%s.h"
