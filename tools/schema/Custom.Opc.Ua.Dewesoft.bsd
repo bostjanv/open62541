@@ -1,0 +1,28 @@
+<opc:TypeDictionary
+  xmlns:opc="http://opcfoundation.org/BinarySchema/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:tns="http://opcfoundation.org/UA/"
+  DefaultByteOrder="LittleEndian"
+  TargetNamespace="http://opcfoundation.org/UA/"
+>
+
+  <opc:Import Namespace="http://opcfoundation.org/BinarySchema/" />
+
+<!-- Dewesoft types begin  -->
+
+  <opc:EnumeratedType Name="DewesoftState" LengthInBits="1">
+    <opc:Documentation>Dewesoft state</opc:Documentation>
+    <opc:EnumeratedValue Name="Setup" Value="0" />
+    <opc:EnumeratedValue Name="Measure" Value="1" />
+  </opc:EnumeratedType>
+  
+   <opc:StructuredType Name="AsyncDatum">
+    <opc:Documentation>Asynchronous datum</opc:Documentation>
+    <opc:Field Name="Value" TypeName="opc:Float" />
+    <opc:Field Name="Timestamp" TypeName="opc:Double" />
+  </opc:StructuredType>
+  
+<!-- Transport types end -->
+
+</opc:TypeDictionary>
